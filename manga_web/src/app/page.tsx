@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image"; // Menggunakan next/image untuk optimasi
+import Link from "next/link";
 
 // Definisi tipe data yang lebih detail untuk manga dan relasinya
 type MangaTag = {
@@ -65,45 +66,47 @@ const MangaCard = ({ manga }: { manga: Manga }) => {
   const coverUrl = getCoverUrl(manga);
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex flex-col h-full">
-      {/* Kontainer untuk gambar dengan rasio aspek tetap */}
-      <div className="relative w-full aspect-[256/362]"> {/* Rasio aspek umum untuk sampul buku */}
-        <Image
-          src={coverUrl}
-          alt={`Sampul untuk ${title}`}
-          fill // Mengisi kontainer
-          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw" // Ukuran responsif
-          style={{ objectFit: "cover" }} // Memastikan gambar menutupi area tanpa distorsi
-          priority={false} // Atur ke true untuk gambar LCP (Largest Contentful Paint)
-          // Jangan optimasi gambar placeholder dari placehold.co
-          unoptimized={coverUrl.startsWith("https://placehold.co")}
-          onError={(e) => {
-            // Ganti dengan placeholder jika gambar gagal dimuat
-            (e.target as HTMLImageElement).src = "https://placehold.co/256x362/1F2937/E5E7EB?text=Gagal+Muat";
-          }}
-        />
-      </div>
-      <div className="p-4 flex flex-col flex-grow">
-        <h2 className="text-lg font-semibold text-white truncate mb-1" title={title}>
-          {title}
-        </h2>
-        <p className="text-sm text-gray-400 mb-2">Tahun: {year}</p>
-        <div className="flex flex-wrap gap-1 mt-auto pt-2"> {/* mt-auto mendorong genre ke bawah */}
-          {genres.length > 0 ? (
-            genres.map((genre, index) => (
-              <span
-                key={index}
-                className="bg-sky-700 text-sky-100 text-xs font-medium px-2.5 py-0.5 rounded-full"
-              >
-                {genre}
-              </span>
-            ))
-          ) : (
-            <span className="text-gray-500 text-xs">Tanpa Genre</span>
-          )}
+    <Link href={`/manga/${manga.id}`} className="h-full">
+      <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex flex-col h-full cursor-pointer">
+        {/* Kontainer untuk gambar dengan rasio aspek tetap */}
+        <div className="relative w-full aspect-[256/362]"> {/* Rasio aspek umum untuk sampul buku */}
+          <Image
+            src={coverUrl}
+            alt={`Sampul untuk ${title}`}
+            fill // Mengisi kontainer
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw" // Ukuran responsif
+            style={{ objectFit: "cover" }} // Memastikan gambar menutupi area tanpa distorsi
+            priority={false} // Atur ke true untuk gambar LCP (Largest Contentful Paint)
+            // Jangan optimasi gambar placeholder dari placehold.co
+            unoptimized={coverUrl.startsWith("https://placehold.co")}
+            onError={(e) => {
+              // Ganti dengan placeholder jika gambar gagal dimuat
+              (e.target as HTMLImageElement).src = "https://placehold.co/256x362/1F2937/E5E7EB?text=Gagal+Muat";
+            }}
+          />
+        </div>
+        <div className="p-4 flex flex-col flex-grow">
+          <h2 className="text-lg font-semibold text-white truncate mb-1" title={title}>
+            {title}
+          </h2>
+          <p className="text-sm text-gray-400 mb-2">Tahun: {year}</p>
+          <div className="flex flex-wrap gap-1 mt-auto pt-2"> {/* mt-auto mendorong genre ke bawah */}
+            {genres.length > 0 ? (
+              genres.map((genre, index) => (
+                <span
+                  key={index}
+                  className="bg-sky-700 text-sky-100 text-xs font-medium px-2.5 py-0.5 rounded-full"
+                >
+                  {genre}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-500 text-xs">Tanpa Genre</span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
