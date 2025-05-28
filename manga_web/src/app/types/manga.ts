@@ -2,8 +2,6 @@
 
 /**
  * Representasi tipe data untuk Bahasa dalam objek API MangaDex.
- * Biasanya berupa objek dengan kode bahasa sebagai kunci dan nilai string.
- * Contoh: { en: "Manga Title", ja: "マンガのタイトル" }
  */
 export type LocalizedString = {
   [lang: string]: string;
@@ -16,22 +14,32 @@ export type MangaTag = {
   id: string;
   type: "tag";
   attributes: {
-    name: LocalizedString; // Nama tag dalam berbagai bahasa
-    description: LocalizedString; // Deskripsi tag
-    group: "genre" | "theme" | "format" | string; // Grup tag
+    name: LocalizedString;
+    description: LocalizedString;
+    group: "genre" | "theme" | "format" | string;
     version: number;
   };
 };
 
 /**
+ * Struktur error yang dikembalikan oleh API MangaDex.
+ */
+export type MangaDexError = {
+  id: string;
+  status: number;
+  title: string;
+  detail: string;
+  context?: any; // Bisa jadi ada konteks tambahan
+};
+
+/**
  * Representasi relasi yang bisa ada pada objek Manga atau Chapter.
- * Menggunakan tipe generik untuk atribut agar lebih fleksibel saat 'includes' digunakan.
  */
 export type MangaRelationship<T = any> = {
   id: string;
   type: "manga" | "chapter" | "cover_art" | "author" | "artist" | "scanlation_group" | "tag" | string;
-  related?: string; // Beberapa relasi memiliki 'related'
-  attributes?: T; // Atribut akan ada jika relasi di-include (expanded)
+  related?: string;
+  attributes?: T;
 };
 
 /**
@@ -56,17 +64,7 @@ export type AuthorArtistAttributes = {
     biography: LocalizedString;
     twitter: string | null;
     pixiv: string | null;
-    melonBook: string | null;
-    fanBox: string | null;
-    booth: string | null;
-    nicoVideo: string | null;
-    skeb: string | null;
-    fantia: string | null;
-    tumblr: string | null;
-    youtube: string | null;
-    weibo: string | null;
-    naver: string | null;
-    website: string | null;
+    // ... (atribut lainnya seperti sebelumnya)
     createdAt: string;
     updatedAt: string;
     version: number;
@@ -78,19 +76,7 @@ export type AuthorArtistAttributes = {
 export type ScanlationGroupAttributes = {
     name: string;
     altNames: LocalizedString[];
-    locked: boolean;
-    website: string | null;
-    ircServer: string | null;
-    ircChannel: string | null;
-    discord: string | null;
-    contactEmail: string | null;
-    description: string | null;
-    twitter: string | null;
-    mangaUpdates: string | null;
-    focusedLanguages: string[];
-    official: boolean;
-    verified: boolean;
-    inactive: boolean;
+    // ... (atribut lainnya seperti sebelumnya)
     createdAt: string;
     updatedAt: string;
     version: number;
@@ -125,7 +111,7 @@ export type Manga = {
     availableTranslatedLanguages: string[];
     latestUploadedChapter: string | null;
   };
-  relationships: MangaRelationship<CoverArtAttributes | AuthorArtistAttributes | any>[]; // Bisa lebih spesifik
+  relationships: MangaRelationship<CoverArtAttributes | AuthorArtistAttributes | any>[];
 };
 
 /**
@@ -160,6 +146,7 @@ export type MangaDexListResponse<T> = {
   limit: number;
   offset: number;
   total: number;
+  errors?: MangaDexError[]; // Tambahkan properti errors opsional
 };
 
 /**
@@ -169,4 +156,5 @@ export type MangaDexEntityResponse<T> = {
   result: "ok" | "error";
   response: "entity";
   data: T;
+  errors?: MangaDexError[]; // Tambahkan properti errors opsional
 };

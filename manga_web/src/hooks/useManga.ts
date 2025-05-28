@@ -1,64 +1,68 @@
-import { useState, useEffect, useRef } from "react";
-import { Manga, MangaTag } from "@/types/manga";
-import { fetchMangaList, fetchGenreList } from "@/lib/api";
+// src/hooks/useManga.ts
+"use client";
 
-export function useMangaFilters() {
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [genreList, setGenreList] = useState<MangaTag[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState("");
-  const [year, setYear] = useState("");
-  const [status, setStatus] = useState("");
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+import { useState, useEffect } from "react";
+import { getMangaDetails as apiGetMangaDetails, getMangaChapters as apiGetMangaChapters } from "@/lib/api";
+import type { Manga, Chapter, MangaDexEntityResponse, MangaDexListResponse } from "@/types/manga";
 
-  // Fetch genre list
-  useEffect(() => {
-    fetchGenreList().then(setGenreList).catch(() => setGenreList([]));
-  }, []);
-
-  // Debounce search
-  useEffect(() => {
-    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-    debounceTimeout.current = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 500);
-    return () => {
-      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-    };
-  }, [search]);
-
-  return {
-    search,
-    setSearch,
-    debouncedSearch,
-    genreList,
-    selectedGenre,
-    setSelectedGenre,
-    year,
-    setYear,
-    status,
-    setStatus,
-  };
+interface UseMangaDetailsReturn {
+  manga: Manga | null;
+  chapters: Chapter[];
+  loading: boolean;
+  error: string | null;
 }
 
-export function useMangaList(filters: {
-  debouncedSearch: string;
-  selectedGenre: string;
-  year: string;
-  status: string;
-}) {
-  const [mangaList, setMangaList] = useState<Manga[]>([]);
+export function useMangaDetails(mangaId: string | null): UseMangaDetailsReturn {
+  const [manga, setManga] = useState<Manga | null>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetchMangaList(filters)
-      .then(setMangaList)
-      .catch((err) => setError(err.message || "Gagal mengambil daftar manga."))
-      .finally(() => setLoading(false));
-  }, [filters.debouncedSearch, filters.selectedGenre, filters.year, filters.status]);
+    if (mangaId) {
+      const loadMangaData = async () => {
+        setLoading(true);
+        setError(null);
+        setManga(null); // Reset manga state saat ID berubah
+        setChapters([]);  // Reset chapter state
+        try {
+          const mangaDetailsResponse: MangaDexEntityResponse<Manga> | null = await apiGetMangaDetails(mangaId);
 
-  return { mangaList, loading, error };
+          if (mangaDetailsResponse && mangaDetailsResponse.result === "ok") {
+            setManga(mangaDetailsResponse.data);
+            // Ambil chapter setelah detail manga berhasil didapatkan
+            const chapterListResponse: MangaDexListResponse<Chapter> | null = await apiGetMangaChapters(mangaId, {
+              limit: 50, // Ambil lebih banyak chapter, atau buat paginasi chapter nanti
+              order: { volume: "desc", chapter: "desc"},
+              translatedLanguage: ["en", "id"], // Prioritaskan bahasa Inggris dan Indonesia
+              includes: ["scanlation_group"]
+            });
+            if (chapterListResponse && chapterListResponse.result === "ok") {
+              setChapters(chapterListResponse.data);
+            } else {
+              // Bisa set error spesifik untuk chapter jika perlu
+              console.warn(`Gagal mengambil chapter untuk manga ${mangaId}: ${chapterListResponse?.errors?.[0]?.detail || 'Unknown error'}`);
+              setChapters([]); // Pastikan chapter kosong jika gagal
+            }
+          } else {
+            setError(mangaDetailsResponse?.errors?.[0]?.detail || "Manga tidak ditemukan atau gagal dimuat.");
+          }
+        } catch (err: any) {
+          setError(err.message || "Terjadi kesalahan saat memuat data manga.");
+          console.error("Error in useMangaDetails:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadMangaData();
+    } else {
+      // Jika tidak ada mangaId, set loading false dan data kosong
+      setLoading(false);
+      setManga(null);
+      setChapters([]);
+      setError(null); // Atau set error bahwa ID tidak valid
+    }
+  }, [mangaId]); // Jalankan ulang efek jika mangaId berubah
+
+  return { manga, chapters, loading, error };
 }

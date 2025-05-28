@@ -1,75 +1,51 @@
-import { MangaTag } from "@/types/manga";
+// src/components/manga/MangaSearch.tsx
+"use client";
 
-type Props = {
-  search: string;
-  setSearch: (v: string) => void;
-  genreList: MangaTag[];
-  selectedGenre: string;
-  setSelectedGenre: (v: string) => void;
-  year: string;
-  setYear: (v: string) => void;
-  status: string;
-  setStatus: (v: string) => void;
+import React, { useState, FormEvent } from 'react';
+
+interface MangaSearchProps {
+  onSearch: (query: string) => void; // Fungsi callback saat pencarian dilakukan
+  initialQuery?: string;
+  isLoading?: boolean;
+}
+
+const MangaSearch: React.FC<MangaSearchProps> = ({ onSearch, initialQuery = "", isLoading = false }) => {
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSearch(searchTerm.trim());
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full max-w-xl mx-auto mb-8">
+      <div className="flex items-center border-b-2 border-sky-500 py-2">
+        <input
+          className="appearance-none bg-transparent border-none w-full text-gray-300 mr-3 py-1 px-2 leading-tight focus:outline-none placeholder-gray-500"
+          type="text"
+          placeholder="Cari manga..."
+          aria-label="Cari manga"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          disabled={isLoading}
+        />
+        <button
+          className="flex-shrink-0 bg-sky-600 hover:bg-sky-700 border-sky-600 hover:border-sky-700 text-sm border-4 text-white py-1 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            'Cari'
+          )}
+        </button>
+      </div>
+    </form>
+  );
 };
-
-const STATUS_OPTIONS = [
-  { value: "", label: "Semua Status" },
-  { value: "ongoing", label: "Ongoing" },
-  { value: "completed", label: "Completed" },
-  { value: "hiatus", label: "Hiatus" },
-  { value: "cancelled", label: "Cancelled" },
-];
-
-const MangaSearch = ({
-  search,
-  setSearch,
-  genreList,
-  selectedGenre,
-  setSelectedGenre,
-  year,
-  setYear,
-  status,
-  setStatus,
-}: Props) => (
-  <section className="w-full max-w-4xl mb-8 flex flex-col sm:flex-row gap-4 items-stretch">
-    <input
-      type="text"
-      className="flex-1 rounded-lg px-4 py-2 bg-gray-800 text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-      placeholder="Cari judul manga..."
-      value={search}
-      onChange={e => setSearch(e.target.value)}
-    />
-    <select
-      className="rounded-lg px-3 py-2 bg-gray-800 text-white border border-gray-700"
-      value={selectedGenre}
-      onChange={e => setSelectedGenre(e.target.value)}
-    >
-      <option value="">Semua Genre</option>
-      {genreList.map(tag => (
-        <option key={tag.id} value={tag.id}>
-          {tag.attributes.name.en || Object.values(tag.attributes.name)[0]}
-        </option>
-      ))}
-    </select>
-    <input
-      type="number"
-      min="1900"
-      max={new Date().getFullYear()}
-      className="w-28 rounded-lg px-3 py-2 bg-gray-800 text-white border border-gray-700"
-      placeholder="Tahun"
-      value={year}
-      onChange={e => setYear(e.target.value)}
-    />
-    <select
-      className="rounded-lg px-3 py-2 bg-gray-800 text-white border border-gray-700"
-      value={status}
-      onChange={e => setStatus(e.target.value)}
-    >
-      {STATUS_OPTIONS.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-  </section>
-);
 
 export default MangaSearch;
