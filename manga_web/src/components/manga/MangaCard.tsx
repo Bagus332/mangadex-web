@@ -1,63 +1,64 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import Image from "next/image";
-import Link from "next/link";
-import { Manga } from "@/types/manga";
+// src/components/manga/MangaCard.tsx
+"use client";
 
-// Komponen untuk menampilkan satu kartu Manga
-const MangaCard = ({ manga }: { manga: Manga }) => {
-  // Fungsi untuk mendapatkan URL cover art
+import Link from "next/link";
+import Image from "next/image";
+import type { Manga, CoverArtAttributes, MangaRelationship } from "@/types/manga"; // Menggunakan alias path
+
+// Tipe prop untuk MangaCard
+interface MangaCardProps {
+  manga: Manga;
+}
+
+const MangaCard: React.FC<MangaCardProps> = ({ manga }) => {
+  // Fungsi untuk mendapatkan URL cover art dari relasi
   const getCoverUrl = (mangaItem: Manga): string => {
-    const coverRel = mangaItem.relationships.find(
-      (rel) => rel.type === "cover_art"
+    const coverArtRelationship = mangaItem.relationships.find(
+      (rel): rel is MangaRelationship<CoverArtAttributes> => rel.type === "cover_art"
     );
-    if (!coverRel || !coverRel.attributes || !("fileName" in coverRel.attributes)) {
-      return "https://placehold.co/256x362/1F2937/E5E7EB?text=Tanpa+Sampul";
+    if (coverArtRelationship?.attributes?.fileName) {
+      return `https://uploads.mangadex.org/covers/${mangaItem.id}/${coverArtRelationship.attributes.fileName}.256.jpg`;
     }
-    const fileName = (coverRel.attributes as any).fileName;
-    return `https://uploads.mangadex.org/covers/${mangaItem.id}/${fileName}.256.jpg`;
+    return "https://placehold.co/256x362/1F2937/E5E7EB?text=Tanpa+Sampul"; // Fallback
   };
 
-  const title =
-    manga.attributes.title.en ||
-    manga.attributes.title[Object.keys(manga.attributes.title)[0]] ||
-    "Tanpa Judul";
+  const title = manga.attributes.title.en || manga.attributes.title[Object.keys(manga.attributes.title)[0]] || "Tanpa Judul";
   const year = manga.attributes.year || "N/A";
   const genres = manga.attributes.tags
     .filter((tag) => tag.attributes.group === "genre")
     .map((tag) => tag.attributes.name.en)
-    .slice(0, 3);
+    .slice(0, 2); // Ambil 2 genre pertama untuk kesederhanaan
 
   const coverUrl = getCoverUrl(manga);
 
   return (
-    <Link href={`/manga/${manga.id}`} className="h-full">
-      <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex flex-col h-full cursor-pointer">
+    <Link href={`/manga/${manga.id}`} passHref legacyBehavior>
+      <a className="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-xl flex flex-col h-full group">
         <div className="relative w-full aspect-[256/362]">
           <Image
             src={coverUrl}
             alt={`Sampul untuk ${title}`}
             fill
-            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            sizes="(max-width: 640px) 45vw, (max-width: 768px) 30vw, (max-width: 1024px) 22vw, 15vw"
             style={{ objectFit: "cover" }}
-            priority={false}
+            className="group-hover:opacity-90 transition-opacity duration-300"
             unoptimized={coverUrl.startsWith("https://placehold.co")}
             onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                "https://placehold.co/256x362/1F2937/E5E7EB?text=Gagal+Muat";
+              (e.target as HTMLImageElement).src = "https://placehold.co/256x362/1F2937/E5E7EB?text=Gagal+Muat";
             }}
           />
         </div>
-        <div className="p-4 flex flex-col flex-grow">
-          <h2 className="text-lg font-semibold text-white truncate mb-1" title={title}>
+        <div className="p-3 sm:p-4 flex flex-col flex-grow">
+          <h3 className="text-sm sm:text-md font-semibold text-white truncate group-hover:text-sky-400 transition-colors duration-300" title={title}>
             {title}
-          </h2>
-          <p className="text-sm text-gray-400 mb-2">Tahun: {year}</p>
-          <div className="flex flex-wrap gap-1 mt-auto pt-2">
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-400 mb-1">Tahun: {year}</p>
+          <div className="flex flex-wrap gap-1 mt-auto pt-1">
             {genres.length > 0 ? (
               genres.map((genre, index) => (
                 <span
                   key={index}
-                  className="bg-sky-700 text-sky-100 text-xs font-medium px-2.5 py-0.5 rounded-full"
+                  className="bg-sky-700 text-sky-100 text-[10px] sm:text-xs px-2 py-0.5 rounded-full"
                 >
                   {genre}
                 </span>
@@ -67,7 +68,7 @@ const MangaCard = ({ manga }: { manga: Manga }) => {
             )}
           </div>
         </div>
-      </div>
+      </a>
     </Link>
   );
 };
