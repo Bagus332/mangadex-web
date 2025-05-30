@@ -1,43 +1,37 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/types/manga.ts
 
-/**
- * Representasi tipe data untuk Bahasa dalam objek API MangaDex.
- * Biasanya berupa objek dengan kode bahasa sebagai kunci dan nilai string.
- * Contoh: { en: "Manga Title", ja: "マンガのタイトル" }
- */
+// ... (Definisi tipe yang sudah ada: LocalizedString, MangaTag, MangaDexError, MangaRelationship, dll.) ...
+
 export type LocalizedString = {
   [lang: string]: string;
 };
 
-/**
- * Representasi Tag (Genre, Tema, Format) dari API MangaDex.
- */
 export type MangaTag = {
   id: string;
   type: "tag";
   attributes: {
-    name: LocalizedString; // Nama tag dalam berbagai bahasa
-    description: LocalizedString; // Deskripsi tag
-    group: "genre" | "theme" | "format" | string; // Grup tag
+    name: LocalizedString;
+    description: LocalizedString;
+    group: "genre" | "theme" | "format" | string;
     version: number;
   };
 };
 
-/**
- * Representasi relasi yang bisa ada pada objek Manga atau Chapter.
- * Menggunakan tipe generik untuk atribut agar lebih fleksibel saat 'includes' digunakan.
- */
+export type MangaDexError = {
+  id: string;
+  status: number;
+  title: string;
+  detail: string;
+  context?: any;
+};
+
 export type MangaRelationship<T = any> = {
   id: string;
   type: "manga" | "chapter" | "cover_art" | "author" | "artist" | "scanlation_group" | "tag" | string;
-  related?: string; // Beberapa relasi memiliki 'related'
-  attributes?: T; // Atribut akan ada jika relasi di-include (expanded)
+  related?: string;
+  attributes?: T;
 };
 
-/**
- * Atribut spesifik untuk relasi 'cover_art' saat di-include.
- */
 export type CoverArtAttributes = {
   description: string;
   volume: string | null;
@@ -48,9 +42,6 @@ export type CoverArtAttributes = {
   version: number;
 };
 
-/**
- * Atribut spesifik untuk relasi 'author' atau 'artist' saat di-include.
- */
 export type AuthorArtistAttributes = {
     name: string;
     imageUrl: string | null;
@@ -73,9 +64,6 @@ export type AuthorArtistAttributes = {
     version: number;
 };
 
-/**
- * Atribut spesifik untuk relasi 'scanlation_group' saat di-include.
- */
 export type ScanlationGroupAttributes = {
     name: string;
     altNames: LocalizedString[];
@@ -97,10 +85,11 @@ export type ScanlationGroupAttributes = {
     version: number;
 }
 
+export type MangaStatus = "ongoing" | "completed" | "hiatus" | "cancelled";
+export type MangaContentRating = "safe" | "suggestive" | "erotica" | "pornographic";
+export type MangaPublicationDemographic = "shounen" | "shoujo" | "josei" | "seinen" | "none";
 
-/**
- * Representasi objek Manga utama dari API MangaDex.
- */
+
 export type Manga = {
   id: string;
   type: "manga";
@@ -113,10 +102,10 @@ export type Manga = {
     originalLanguage: string;
     lastVolume: string | null;
     lastChapter: string | null;
-    publicationDemographic: "shounen" | "shoujo" | "josei" | "seinen" | "none" | null;
-    status: "ongoing" | "completed" | "hiatus" | "cancelled";
+    publicationDemographic: MangaPublicationDemographic | null;
+    status: MangaStatus;
     year: number | null;
-    contentRating: "safe" | "suggestive" | "erotica" | "pornographic";
+    contentRating: MangaContentRating;
     tags: MangaTag[];
     state: "draft" | "submitted" | "published" | "rejected";
     chapterNumbersResetOnNewVolume: boolean;
@@ -126,12 +115,9 @@ export type Manga = {
     availableTranslatedLanguages: string[];
     latestUploadedChapter: string | null;
   };
-  relationships: MangaRelationship<CoverArtAttributes | AuthorArtistAttributes | any>[]; // Bisa lebih spesifik
+  relationships: MangaRelationship<CoverArtAttributes | AuthorArtistAttributes | any>[];
 };
 
-/**
- * Representasi objek Chapter dari API MangaDex.
- */
 export type Chapter = {
   id: string;
   type: "chapter";
@@ -151,9 +137,19 @@ export type Chapter = {
   relationships: MangaRelationship<ScanlationGroupAttributes | any>[];
 };
 
-/**
- * Representasi respons umum dari API MangaDex saat mengambil daftar.
- */
+export type ChapterPageData = {
+  hash: string;
+  data: string[];
+  dataSaver: string[];
+};
+
+export type AtHomeServerResponse = {
+  result: "ok" | "error";
+  baseUrl: string;
+  chapter: ChapterPageData;
+  errors?: MangaDexError[];
+};
+
 export type MangaDexListResponse<T> = {
   result: "ok" | "error";
   response: "collection";
@@ -161,13 +157,23 @@ export type MangaDexListResponse<T> = {
   limit: number;
   offset: number;
   total: number;
+  errors?: MangaDexError[];
 };
 
-/**
- * Representasi respons umum dari API MangaDex saat mengambil satu entitas.
- */
 export type MangaDexEntityResponse<T> = {
   result: "ok" | "error";
   response: "entity";
   data: T;
+  errors?: MangaDexError[];
 };
+
+// Tipe untuk parameter filter pencarian yang lebih kompleks
+export interface MangaSearchParameters {
+  title?: string;
+  year?: number | string; // Bisa string dari input, lalu di-parse
+  status?: MangaStatus[];
+  contentRating?: MangaContentRating[];
+  // Tambahkan parameter lain di sini jika diperlukan
+  // includedTags?: string[]; // ID Tag
+  // authors?: string[]; // ID Author
+}

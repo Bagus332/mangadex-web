@@ -5,72 +5,96 @@ import type {
   Chapter,
   MangaDexListResponse,
   MangaDexEntityResponse,
-  AtHomeServerResponse, // Impor tipe baru
+  AtHomeServerResponse,
+  MangaStatus,
+  MangaContentRating,
+  // MangaPublicationDemographic, // Jika Anda ingin menambahkannya nanti
 } from "../types/manga";
 
 const BASE_URL = "https://api.mangadex.org";
 
-// ... (fungsi fetchMangaList, getMangaDetails, getMangaChapters tetap sama) ...
-
 export interface FetchMangaListOptions {
   limit?: number;
   offset?: number;
-  order?: { [key: string]: "asc" | "desc" };
+  order?: { [key: string]: "asc" | "desc" }; // Tetap fleksibel untuk berbagai jenis urutan
   includes?: string[];
   availableTranslatedLanguage?: string[];
-  contentRating?: ("safe" | "suggestive" | "erotica" | "pornographic")[];
   title?: string;
-  [key: string]: any;
+  year?: number | string;
+  status?: MangaStatus[];
+  contentRating?: MangaContentRating[];
+  // Jika ada filter spesifik lain yang ingin Anda tambahkan secara eksplisit, definisikan di sini.
+  // Contoh:
+  // publicationDemographic?: MangaPublicationDemographic[];
+  // includedTags?: string[]; // Array ID Tag
 }
 
 export async function fetchMangaList(
   options: FetchMangaListOptions = {}
 ): Promise<MangaDexListResponse<Manga> | null> {
+  // Destrukturisasi semua opsi yang didefinisikan secara eksplisit
   const {
     limit = 20,
     offset = 0,
-    order = { relevance: "desc" },
+    order = { relevance: "desc" }, // Default order, bisa di-override dari pemanggil
     includes = ["cover_art"],
     availableTranslatedLanguage = ["en"],
-    contentRating = [],
     title,
-    ...otherParams
+    year,
+    status = [], // Default ke array kosong jika tidak disediakan
+    contentRating = [], // Default ke array kosong jika tidak disediakan
+    // Hapus ...otherParams karena kita ingin lebih ketat
   } = options;
 
-  const orderQuery = Object.entries(order)
-    .map(([key, value]) => `order[${key}]=${value}`)
-    .join("&");
-  const includesQuery = includes.map((inc) => `includes[]=${inc}`).join("&");
-  const langQuery = availableTranslatedLanguage
-    .map((lang) => `availableTranslatedLanguage[]=${lang}`)
-    .join("&");
-  const contentRatingQuery = contentRating
-    .map((rating) => `contentRating[]=${rating}`)
-    .join("&");
-  const titleQuery = title ? `title=${encodeURIComponent(title)}` : "";
-  const otherParamsQuery = Object.entries(otherParams)
-    .filter(([key]) => !['limit', 'offset', 'order', 'includes', 'availableTranslatedLanguage', 'contentRating', 'title'].includes(key))
-    .map(([key, value]) => {
-      if (Array.isArray(value)) {
-        return value.map(v => `${key}[]=${encodeURIComponent(v)}`).join('&');
-      }
-      return `${key}=${encodeURIComponent(value)}`;
-    })
-    .join("&");
+  const queryParts: string[] = [];
+  queryParts.push(`limit=${limit}`);
+  queryParts.push(`offset=${offset}`);
 
-  const queryParams = [
-    `limit=${limit}`,
-    `offset=${offset}`,
-    orderQuery,
-    includesQuery,
-    langQuery,
-    contentRatingQuery,
-    titleQuery,
-    otherParamsQuery,
-  ]
-    .filter(Boolean)
-    .join("&");
+  // Proses 'order'
+  Object.entries(order).forEach(([key, value]) => {
+    queryParts.push(`order[${key}]=${encodeURIComponent(value)}`);
+  });
 
+  // Proses 'includes' (array)
+  includes.forEach((inc) => {
+    queryParts.push(`includes[]=${encodeURIComponent(inc)}`);
+  });
+
+  // Proses 'availableTranslatedLanguage' (array)
+  availableTranslatedLanguage.forEach((lang) => {
+    queryParts.push(`availableTranslatedLanguage[]=${encodeURIComponent(lang)}`);
+  });
+
+  // Proses 'title' (string)
+  if (title) {
+    queryParts.push(`title=${encodeURIComponent(title)}`);
+  }
+
+  // Proses 'year' (number atau string)
+  if (year !== undefined) { // Cek undefined karena tahun 0 bisa jadi valid
+    queryParts.push(`year=${year}`);
+  }
+
+  // Proses 'status' (array)
+  status.forEach((s) => {
+    queryParts.push(`status[]=${encodeURIComponent(s)}`);
+  });
+
+  // Proses 'contentRating' (array)
+  contentRating.forEach((cr) => {
+    queryParts.push(`contentRating[]=${encodeURIComponent(cr)}`);
+  });
+
+  // Jika Anda menambahkan filter lain ke FetchMangaListOptions, tambahkan logikanya di sini.
+  // Contoh:
+  // if (options.publicationDemographic) {
+  //   options.publicationDemographic.forEach(pd => queryParts.push(`publicationDemographic[]=${encodeURIComponent(pd)}`));
+  // }
+  // if (options.includedTags) {
+  //   options.includedTags.forEach(tagId => queryParts.push(`includedTags[]=${encodeURIComponent(tagId)}`));
+  // }
+
+  const queryParams = queryParts.filter(Boolean).join("&");
   const url = `${BASE_URL}/manga?${queryParams}`;
   console.log("[API] Fetching manga list from:", url);
 
@@ -84,12 +108,8 @@ export async function fetchMangaList(
       } catch (e) {
         errorBody = response.statusText;
       }
-      console.error(
-        `[API] API Error fetching manga list: ${response.status} ${errorBody}`
-      );
-      throw new Error(
-        `Gagal mengambil daftar manga: ${response.status} ${errorBody}`
-      );
+      console.error(`[API] API Error fetching manga list: ${response.status} ${errorBody}`);
+      throw new Error(`Gagal mengambil daftar manga: ${response.status} ${errorBody}`);
     }
     const data: MangaDexListResponse<Manga> = await response.json();
     return data;
@@ -99,6 +119,9 @@ export async function fetchMangaList(
   }
 }
 
+// ... (getMangaDetails, getMangaChapters, getChapterPagesData tetap sama) ...
+// Pastikan impor tipe di fungsi lain juga sesuai jika ada perubahan di manga.ts
+
 export async function getMangaDetails(
   id: string
 ): Promise<MangaDexEntityResponse<Manga> | null> {
@@ -106,8 +129,8 @@ export async function getMangaDetails(
     console.error("[API] Manga ID is required for getMangaDetails");
     return null;
   }
-  const includes = ["cover_art", "author", "artist"];
-  const includesQuery = includes.map((inc) => `includes[]=${inc}`).join("&");
+  const includesParams = ["cover_art", "author", "artist"];
+  const includesQuery = includesParams.map((inc) => `includes[]=${inc}`).join("&");
   const url = `${BASE_URL}/manga/${id}?${includesQuery}`;
   console.log("[API] Fetching manga details from:", url);
 
@@ -142,7 +165,7 @@ export interface FetchMangaFeedOptions {
   translatedLanguage?: string[];
   order?: { [key: string]: "asc" | "desc" };
   includes?: string[];
-  contentRating?: ("safe" | "suggestive" | "erotica" | "pornographic")[];
+  contentRating?: MangaContentRating[];
 }
 
 export async function getMangaChapters(
@@ -163,29 +186,26 @@ export async function getMangaChapters(
     contentRating = [],
   } = options;
 
-  const orderQuery = Object.entries(order)
-    .map(([key, value]) => `order[${key}]=${value}`)
-    .join("&");
-  const langQuery = translatedLanguage
-    .map((lang) => `translatedLanguage[]=${lang}`)
-    .join("&");
-  const includesQuery = includes.map((inc) => `includes[]=${inc}`).join("&");
-  const contentRatingQuery = contentRating
-    .map((rating) => `contentRating[]=${rating}`)
-    .join("&");
+  const queryPartsChapter: string[] = [];
+  queryPartsChapter.push(`limit=${limit}`);
+  queryPartsChapter.push(`offset=${offset}`);
 
-  const queryParams = [
-    `limit=${limit}`,
-    `offset=${offset}`,
-    orderQuery,
-    langQuery,
-    includesQuery,
-    contentRatingQuery,
-  ]
-    .filter(Boolean)
-    .join("&");
+  Object.entries(order).forEach(([key, value]) => {
+    queryPartsChapter.push(`order[${key}]=${value}`);
+  });
+  translatedLanguage.forEach((lang) => {
+    queryPartsChapter.push(`translatedLanguage[]=${lang}`);
+  });
+  includes.forEach((inc) => {
+    queryPartsChapter.push(`includes[]=${inc}`);
+  });
+  contentRating.forEach((cr) => {
+    queryPartsChapter.push(`contentRating[]=${cr}`);
+  });
 
-  const url = `${BASE_URL}/manga/${mangaId}/feed?${queryParams}`;
+
+  const queryParamsChapter = queryPartsChapter.filter(Boolean).join("&");
+  const url = `${BASE_URL}/manga/${mangaId}/feed?${queryParamsChapter}`;
   console.log("[API] Fetching manga chapters from:", url);
 
   try {
@@ -213,11 +233,7 @@ export async function getMangaChapters(
   }
 }
 
-/**
- * Mengambil data server dan halaman gambar untuk sebuah chapter.
- * @param chapterId ID chapter yang akan diambil halamannya.
- * @returns Promise yang resolve ke AtHomeServerResponse atau null jika terjadi error.
- */
+
 export async function getChapterPagesData(
   chapterId: string
 ): Promise<AtHomeServerResponse | null> {

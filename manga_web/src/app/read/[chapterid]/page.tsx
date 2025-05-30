@@ -1,32 +1,70 @@
 // src/app/read/[chapterId]/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
+// import Image from "next/image"; // Komentari jika tidak digunakan secara langsung di sini
+// import Link from "next/link"; // Komentari jika tidak digunakan secara langsung di sini
 import { getChapterPagesData } from "@/lib/api";
 import type { AtHomeServerResponse } from "@/types/manga";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 
 // Komponen untuk menampilkan gambar dan navigasi
-const MangaReaderView = ({ imageUrls, initialPage = 0 }: { imageUrls: string[]; initialPage?: number }) => {
+interface MangaReaderViewProps {
+  imageUrls: string[];
+  initialPage?: number;
+  onReturnToDetails: () => void; // Callback untuk kembali ke detail manga
+  // Anda bisa menambahkan callback untuk chapter berikutnya jika ada
+  // onNavigateToNextChapter?: () => void;
+}
+
+const MangaReaderView: React.FC<MangaReaderViewProps> = ({
+  imageUrls,
+  initialPage = 0,
+  onReturnToDetails,
+}) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(initialPage);
+  const [imageWidth, setImageWidth] = useState<number | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
-  if (imageUrls.length === 0) {
-    return <ErrorMessage message="Tidak ada gambar untuk ditampilkan." />;
-  }
+  // Header collapse state
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
 
-  const handlePreviousPage = () => {
+  // Responsiveness: no need to set container width, just use max-w-full and responsive paddings
+
+  // Header auto-hide on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY < 10) {
+        setShowHeader(true);
+      } else if (currentScrollY > lastScrollY.current) {
+        setShowHeader(false); // scrolling down
+      } else {
+        setShowHeader(true); // scrolling up
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handlePreviousPage = useCallback(() => {
     setCurrentPageIndex((prev) => Math.max(0, prev - 1));
-  };
+  }, []);
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     setCurrentPageIndex((prev) => Math.min(imageUrls.length - 1, prev + 1));
+  }, [imageUrls.length]);
+
+  const handleImageLoad = () => {
+    if (imageRef.current) {
+      setImageWidth(imageRef.current.naturalWidth);
+    }
   };
 
-  // Handle navigasi keyboard
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft") {
@@ -39,64 +77,91 @@ const MangaReaderView = ({ imageUrls, initialPage = 0 }: { imageUrls: string[]; 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPageIndex]); // Re-bind if index changes, though not strictly necessary for these handlers
+  }, [handlePreviousPage, handleNextPage]);
+
+  if (imageUrls.length === 0) {
+    return (
+      <div className="flex-grow flex items-center justify-center">
+        <ErrorMessage message="Tidak ada gambar untuk ditampilkan." />
+      </div>
+    );
+  }
+
+  const isLastPage = currentPageIndex === imageUrls.length - 1;
+  const currentImageUrl = imageUrls[currentPageIndex];
 
   return (
-    <div className="flex flex-col items-center w-full">
-      {/* Navigasi Atas */}
-      <div className="fixed top-0 left-0 right-0 bg-gray-900 bg-opacity-80 p-3 flex justify-between items-center z-50 print:hidden">
-        <button
+    <div className="flex flex-col items-center w-full h-full relative">
+      {/* Responsive & Collapsible Header */}
+        <header
+            className={`fixed top-0 left-0 right-0 bg-gray-900 bg-opacity-90 p-3 flex justify-between items-center z-50 transition-transform duration-300 ${
+            showHeader ? "translate-y-0" : "-translate-y-full"
+            } print:hidden shadow-lg`}
+            >
+            <button
+                onClick={onReturnToDetails}
+                className="absolute top-4 left-4 bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+                Kembali
+            </button>
+        </header>
+
+      {/* Responsive Image Container */}
+      <div className="flex-grow flex justify-center items-center overflow-x-auto pt-14 sm:pt-16 pb-14 sm:pb-16 px-1 sm:px-2 w-full">
+        {currentImageUrl ? (
+          <img
+            key={currentImageUrl}
+            ref={imageRef}
+            src={currentImageUrl}
+            alt={`Halaman manga ${currentPageIndex + 1}`}
+            className="object-contain rounded shadow-lg bg-gray-700 w-full max-w-full h-auto max-h-[80vh] sm:max-h-[90vh] transition-all"
+            onLoad={handleImageLoad}
+            style={{ maxWidth: "100%", height: "auto" }}
+          />
+        ) : (
+          <div className="text-gray-400">Memuat gambar...</div>
+        )}
+        {/* Navigasi Bawah (Fixed) - Konten berubah berdasarkan halaman terakhir */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-90 p-3 flex justify-around items-center z-50 print:hidden shadow-lg h-16">
+        {isLastPage ? (
+          <>
+            <span className="text-lg text-sky-300 font-semibold">Akhir Chapter</span>
+            <button
+              onClick={onReturnToDetails}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              Kembali ke Detail
+            </button>
+            {/* <button
+              // onClick={onNavigateToNextChapter} // Jika ada fungsi untuk chapter berikutnya
+              disabled // Sementara disable
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Chapter Berikutnya
+            </button> */}
+          </>
+        ) : (
+          <>
+            <button
           onClick={handlePreviousPage}
           disabled={currentPageIndex === 0}
-          className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="bg-transparent hover:bg-sky-700 text-white font-semibold py-1 px-3 sm:py-2 sm:px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          &lt; Sebelumnya
+          &lt;
         </button>
-        <span className="text-lg font-medium text-gray-200">
-          Halaman {currentPageIndex + 1} dari {imageUrls.length}
+        <span className="text-base sm:text-lg font-medium text-gray-200 truncate px-2 ">
+          {currentPageIndex + 1} / {imageUrls.length}
         </span>
         <button
           onClick={handleNextPage}
-          disabled={currentPageIndex === imageUrls.length - 1}
-          className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          disabled={isLastPage}
+          className="bg-transparent hover:bg-sky-700 text-white font-semibold py-1 px-3 sm:py-2 sm:px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Berikutnya &gt;
+          &gt;
         </button>
-      </div>
-
-      {/* Kontainer Gambar Utama */}
-      <div className="mt-20 mb-20 w-full max-w-3xl flex justify-center items-start min-h-[calc(100vh-160px)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={imageUrls[currentPageIndex]} // Key untuk re-render jika src berubah
-          src={imageUrls[currentPageIndex]}
-          alt={`Halaman manga ${currentPageIndex + 1}`}
-          className="max-w-full max-h-[calc(100vh-180px)] h-auto object-contain rounded shadow-lg"
-          // Menggunakan <img> standar untuk kesederhanaan dan menghindari masalah konfigurasi hostname next/image untuk domain MangaDex@Home yang dinamis
-          // Anda bisa menggunakan next/image jika Anda mengelola proxy atau daftar hostname yang diizinkan
-        />
-      </div>
-
-       {/* Navigasi Bawah (opsional, bisa sama dengan yang atas) */}
-       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 bg-opacity-80 p-3 flex justify-between items-center z-50 print:hidden">
-         <button
-          onClick={handlePreviousPage}
-          disabled={currentPageIndex === 0}
-          className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          &lt; Sebelumnya
-        </button>
-        <span className="text-lg font-medium text-gray-200">
-          Halaman {currentPageIndex + 1} dari {imageUrls.length}
-        </span>
-        <button
-          onClick={handleNextPage}
-          disabled={currentPageIndex === imageUrls.length - 1}
-          className="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Berikutnya &gt;
-        </button>
+          </>
+        )}
+        </div>
       </div>
     </div>
   );
@@ -105,18 +170,24 @@ const MangaReaderView = ({ imageUrls, initialPage = 0 }: { imageUrls: string[]; 
 
 export default function ChapterReadPage() {
   const params = useParams();
-  const chapterId = typeof params.chapterId === 'string' ? params.chapterId : null;
-  const router = useRouter(); // Untuk tombol kembali
+  const router = useRouter();
+
+  const chapterIdFromParams = params.chapterid;
+  const chapterId = typeof chapterIdFromParams === 'string' ? chapterIdFromParams : null;
 
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // State untuk menyimpan mangaId jika Anda ingin tombol kembali yang lebih spesifik
-  // const [mangaIdForBackButton, setMangaIdForBackButton] = useState<string | null>(null);
+
+  // Callback untuk tombol kembali di footer
+  const handleReturnToDetails = useCallback(() => {
+    router.back(); // Atau navigasi ke halaman detail manga jika ID manga diketahui
+  }, [router]);
 
 
   useEffect(() => {
     if (chapterId) {
+      console.log(`[ChapterReadPage] useEffect dijalankan dengan chapterId: ${chapterId}`);
       const loadChapterImages = async () => {
         setIsLoading(true);
         setError(null);
@@ -124,36 +195,28 @@ export default function ChapterReadPage() {
           const pagesDataResponse: AtHomeServerResponse | null = await getChapterPagesData(chapterId);
           if (pagesDataResponse && pagesDataResponse.result === "ok") {
             const { baseUrl, chapter } = pagesDataResponse;
-            // Pilih kualitas gambar (data untuk original, dataSaver untuk hemat data)
-            const qualityMode = "data"; // atau "data-saver"
+            const qualityMode = "data";
             const constructedImageUrls = chapter[qualityMode].map(
               (fileName) => `${baseUrl}/${qualityMode}/${chapter.hash}/${fileName}`
             );
             setImageUrls(constructedImageUrls);
-
-            // Jika Anda ingin mengambil mangaId untuk tombol kembali:
-            // Anda perlu cara untuk mendapatkan mangaId dari chapterId.
-            // Ini mungkin memerlukan panggilan API tambahan ke /chapter/{chapterId} untuk mendapatkan relasi manga.
-            // Atau, jika Anda menavigasi dari halaman detail manga, Anda bisa meneruskan mangaId melalui query params atau state.
-            // Contoh sederhana:
-            // const chapterDetails = await fetch(`https://api.mangadex.org/chapter/${chapterId}?includes[]=manga`);
-            // const chapterDetailsJson = await chapterDetails.json();
-            // const mangaRel = chapterDetailsJson.data.relationships.find((r: any) => r.type === 'manga');
-            // if (mangaRel) setMangaIdForBackButton(mangaRel.id);
-
+            console.log(`[ChapterReadPage] Berhasil memuat ${constructedImageUrls.length} gambar.`);
           } else {
-            setError(pagesDataResponse?.errors?.[0]?.detail || "Gagal memuat data halaman chapter.");
+            const apiError = pagesDataResponse?.errors?.[0]?.detail || "Gagal memuat data halaman chapter dari API.";
+            console.error("[ChapterReadPage] Error dari API saat memuat halaman:", apiError, pagesDataResponse);
+            setError(apiError);
           }
         } catch (err: any) {
+          console.error("[ChapterReadPage] Error saat fetch halaman chapter:", err);
           setError(err.message || "Terjadi kesalahan saat memuat halaman chapter.");
-          console.error("[ChapterReadPage] Error loading chapter images:", err);
         } finally {
           setIsLoading(false);
         }
       };
       loadChapterImages();
     } else {
-      setError("ID Chapter tidak valid.");
+      console.warn("[ChapterReadPage] useEffect: ID Chapter tidak valid atau null, mengatur error.");
+      setError("ID Chapter tidak valid atau tidak ditemukan di URL.");
       setIsLoading(false);
     }
   }, [chapterId]);
@@ -171,7 +234,7 @@ export default function ChapterReadPage() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800 text-white p-8">
         <ErrorMessage title="Gagal Memuat Chapter" message={error} className="w-full max-w-md" />
         <button
-            onClick={() => router.back()} // Kembali ke halaman sebelumnya
+            onClick={() => router.back()}
             className="mt-6 bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
         >
             Kembali
@@ -181,10 +244,9 @@ export default function ChapterReadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-800 flex flex-col items-center pt-4 pb-4">
-        {/* Tombol kembali yang lebih kontekstual bisa ditambahkan di sini jika mangaIdForBackButton ada */}
-        {/* <Link href={mangaIdForBackButton ? `/manga/${mangaIdForBackButton}` : "/"} className="fixed top-4 left-4 z-50 ...">Kembali ke Detail Manga</Link> */}
-      <MangaReaderView imageUrls={imageUrls} />
+    // Kontainer utama halaman pembaca, pastikan mengambil tinggi penuh layar
+    <div className="h-screen w-screen bg-gray-800 flex flex-col overflow-hidden">
+      <MangaReaderView imageUrls={imageUrls} onReturnToDetails={handleReturnToDetails} />
     </div>
   );
 }

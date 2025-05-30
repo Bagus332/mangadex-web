@@ -11,10 +11,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "placehold.co", // Tambahkan juga untuk placeholder jika belum ada
+        hostname: "placehold.co", // Untuk gambar placeholder Anda
         port: "",
-        pathname: "/**",
+        pathname: "/**", // Memperbolehkan semua path
       }
+      // Tambahkan hostname lain di sini jika diperlukan
     ],
   },
 };
