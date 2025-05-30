@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/lib/api.ts
 
 import type {
@@ -7,64 +5,51 @@ import type {
   Chapter,
   MangaDexListResponse,
   MangaDexEntityResponse,
-} from "../types/manga"; // Impor tipe data
+  AtHomeServerResponse, // Impor tipe baru
+} from "../types/manga";
 
-// URL dasar untuk API MangaDex
 const BASE_URL = "https://api.mangadex.org";
 
-/**
- * Opsi untuk mengambil daftar manga.
- */
+// ... (fungsi fetchMangaList, getMangaDetails, getMangaChapters tetap sama) ...
+
 export interface FetchMangaListOptions {
   limit?: number;
   offset?: number;
   order?: { [key: string]: "asc" | "desc" };
   includes?: string[];
   availableTranslatedLanguage?: string[];
-  contentRating?: ("safe" | "suggestive" | "erotica" | "pornographic")[]; // Eksplisitkan tipe untuk contentRating
-  [key: string]: any; // Untuk parameter query lainnya
+  contentRating?: ("safe" | "suggestive" | "erotica" | "pornographic")[];
+  title?: string;
+  [key: string]: any;
 }
 
-/**
- * Mengambil daftar manga dari API MangaDex.
- * @param options Opsi untuk kueri, seperti limit, offset, order, includes.
- * @returns Promise yang resolve ke MangaDexListResponse<Manga> atau null jika terjadi error.
- */
 export async function fetchMangaList(
   options: FetchMangaListOptions = {}
 ): Promise<MangaDexListResponse<Manga> | null> {
-  // Set nilai default jika tidak disediakan
   const {
     limit = 20,
     offset = 0,
-    order = { followedCount: "desc" },
+    order = { relevance: "desc" },
     includes = ["cover_art"],
     availableTranslatedLanguage = ["en"],
-    contentRating = [], // Default ke array kosong jika tidak disediakan
-    ...otherParams // Tangkap parameter lain yang mungkin ingin ditambahkan
+    contentRating = [],
+    title,
+    ...otherParams
   } = options;
 
-  // Membuat query string dari objek 'order'
   const orderQuery = Object.entries(order)
     .map(([key, value]) => `order[${key}]=${value}`)
     .join("&");
-
-  // Membuat query string dari array 'includes'
   const includesQuery = includes.map((inc) => `includes[]=${inc}`).join("&");
-
-  // Membuat query string dari array 'availableTranslatedLanguage'
   const langQuery = availableTranslatedLanguage
     .map((lang) => `availableTranslatedLanguage[]=${lang}`)
     .join("&");
-
-  // Membuat query string dari array 'contentRating'
   const contentRatingQuery = contentRating
     .map((rating) => `contentRating[]=${rating}`)
     .join("&");
-
-  // Membuat query string dari parameter lainnya, pastikan tidak memproses ulang yang sudah ditangani
+  const titleQuery = title ? `title=${encodeURIComponent(title)}` : "";
   const otherParamsQuery = Object.entries(otherParams)
-    .filter(([key]) => !['limit', 'offset', 'order', 'includes', 'availableTranslatedLanguage', 'contentRating'].includes(key)) // Hindari duplikasi
+    .filter(([key]) => !['limit', 'offset', 'order', 'includes', 'availableTranslatedLanguage', 'contentRating', 'title'].includes(key))
     .map(([key, value]) => {
       if (Array.isArray(value)) {
         return value.map(v => `${key}[]=${encodeURIComponent(v)}`).join('&');
@@ -73,21 +58,21 @@ export async function fetchMangaList(
     })
     .join("&");
 
-  // Gabungkan semua bagian query string
   const queryParams = [
     `limit=${limit}`,
     `offset=${offset}`,
     orderQuery,
     includesQuery,
     langQuery,
-    contentRatingQuery, // Tambahkan contentRatingQuery
+    contentRatingQuery,
+    titleQuery,
     otherParamsQuery,
   ]
-    .filter(Boolean) // Hapus string kosong jika ada
+    .filter(Boolean)
     .join("&");
 
   const url = `${BASE_URL}/manga?${queryParams}`;
-  console.log("Fetching manga list from:", url); // Log URL untuk debugging
+  console.log("[API] Fetching manga list from:", url);
 
   try {
     const response = await fetch(url);
@@ -100,7 +85,7 @@ export async function fetchMangaList(
         errorBody = response.statusText;
       }
       console.error(
-        `API Error fetching manga list: ${response.status} ${errorBody}`
+        `[API] API Error fetching manga list: ${response.status} ${errorBody}`
       );
       throw new Error(
         `Gagal mengambil daftar manga: ${response.status} ${errorBody}`
@@ -109,27 +94,22 @@ export async function fetchMangaList(
     const data: MangaDexListResponse<Manga> = await response.json();
     return data;
   } catch (error) {
-    console.error("Error in fetchMangaList:", error);
+    console.error("[API] Error in fetchMangaList:", error);
     return null;
   }
 }
 
-/**
- * Mengambil detail manga spesifik berdasarkan ID.
- * @param id ID manga yang akan diambil.
- * @returns Promise yang resolve ke MangaDexEntityResponse<Manga> atau null jika terjadi error.
- */
 export async function getMangaDetails(
   id: string
 ): Promise<MangaDexEntityResponse<Manga> | null> {
   if (!id) {
-    console.error("Manga ID is required for getMangaDetails");
+    console.error("[API] Manga ID is required for getMangaDetails");
     return null;
   }
   const includes = ["cover_art", "author", "artist"];
   const includesQuery = includes.map((inc) => `includes[]=${inc}`).join("&");
   const url = `${BASE_URL}/manga/${id}?${includesQuery}`;
-  console.log("Fetching manga details from:", url);
+  console.log("[API] Fetching manga details from:", url);
 
   try {
     const response = await fetch(url);
@@ -142,7 +122,7 @@ export async function getMangaDetails(
         errorBody = response.statusText;
       }
       console.error(
-        `API Error fetching manga details for ${id}: ${response.status} ${errorBody}`
+        `[API] API Error fetching manga details for ${id}: ${response.status} ${errorBody}`
       );
       throw new Error(
         `Gagal mengambil detail manga ${id}: ${response.status} ${errorBody}`
@@ -151,14 +131,11 @@ export async function getMangaDetails(
     const data: MangaDexEntityResponse<Manga> = await response.json();
     return data;
   } catch (error) {
-    console.error(`Error in getMangaDetails for manga ${id}:`, error);
+    console.error(`[API] Error in getMangaDetails for manga ${id}:`, error);
     return null;
   }
 }
 
-/**
- * Opsi untuk mengambil feed chapter manga.
- */
 export interface FetchMangaFeedOptions {
   limit?: number;
   offset?: number;
@@ -168,28 +145,22 @@ export interface FetchMangaFeedOptions {
   contentRating?: ("safe" | "suggestive" | "erotica" | "pornographic")[];
 }
 
-/**
- * Mengambil daftar chapter (feed) untuk manga tertentu.
- * @param mangaId ID manga yang chapternya akan diambil.
- * @param options Opsi untuk kueri feed chapter.
- * @returns Promise yang resolve ke MangaDexListResponse<Chapter> atau null jika terjadi error.
- */
 export async function getMangaChapters(
   mangaId: string,
   options: FetchMangaFeedOptions = {}
 ): Promise<MangaDexListResponse<Chapter> | null> {
   if (!mangaId) {
-    console.error("Manga ID is required for getMangaChapters");
+    console.error("[API] Manga ID is required for getMangaChapters");
     return null;
   }
 
   const {
-    limit = 20,
+    limit = 50,
     offset = 0,
     translatedLanguage = ["en"],
     order = { volume: "desc", chapter: "desc" },
     includes = ["scanlation_group"],
-    contentRating = [], // Tambahkan contentRating juga di sini jika relevan untuk chapter feed
+    contentRating = [],
   } = options;
 
   const orderQuery = Object.entries(order)
@@ -209,13 +180,13 @@ export async function getMangaChapters(
     orderQuery,
     langQuery,
     includesQuery,
-    contentRatingQuery, // Tambahkan ke query params
+    contentRatingQuery,
   ]
     .filter(Boolean)
     .join("&");
 
   const url = `${BASE_URL}/manga/${mangaId}/feed?${queryParams}`;
-  console.log("Fetching manga chapters from:", url);
+  console.log("[API] Fetching manga chapters from:", url);
 
   try {
     const response = await fetch(url);
@@ -228,7 +199,7 @@ export async function getMangaChapters(
         errorBody = response.statusText;
       }
       console.error(
-        `API Error fetching chapters for manga ${mangaId}: ${response.status} ${errorBody}`
+        `[API] API Error fetching chapters for manga ${mangaId}: ${response.status} ${errorBody}`
       );
       throw new Error(
         `Gagal mengambil chapter untuk manga ${mangaId}: ${response.status} ${errorBody}`
@@ -237,7 +208,51 @@ export async function getMangaChapters(
     const data: MangaDexListResponse<Chapter> = await response.json();
     return data;
   } catch (error) {
-    console.error(`Error in getMangaChapters for manga ${mangaId}:`, error);
+    console.error(`[API] Error in getMangaChapters for manga ${mangaId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Mengambil data server dan halaman gambar untuk sebuah chapter.
+ * @param chapterId ID chapter yang akan diambil halamannya.
+ * @returns Promise yang resolve ke AtHomeServerResponse atau null jika terjadi error.
+ */
+export async function getChapterPagesData(
+  chapterId: string
+): Promise<AtHomeServerResponse | null> {
+  if (!chapterId) {
+    console.error("[API] Chapter ID is required for getChapterPagesData");
+    return null;
+  }
+  const url = `${BASE_URL}/at-home/server/${chapterId}`;
+  console.log("[API] Fetching chapter pages data from:", url);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      let errorBody = "Unknown API error";
+      try {
+        const errorData = await response.json();
+        errorBody = errorData.errors?.[0]?.detail || JSON.stringify(errorData) || response.statusText;
+      } catch (e) {
+        errorBody = response.statusText;
+      }
+      console.error(
+        `[API] API Error fetching chapter pages for ${chapterId}: ${response.status} ${errorBody}`
+      );
+      throw new Error(
+        `Gagal mengambil data halaman chapter ${chapterId}: ${response.status} ${errorBody}`
+      );
+    }
+    const data: AtHomeServerResponse = await response.json();
+    if (data.result !== "ok") {
+        console.error(`[API] Chapter pages data for ${chapterId} returned result: ${data.result}`, data.errors);
+        throw new Error(`Gagal mengambil data halaman chapter ${chapterId}: ${data.errors?.[0]?.detail || data.result}`);
+    }
+    return data;
+  } catch (error) {
+    console.error(`[API] Error in getChapterPagesData for chapter ${chapterId}:`, error);
     return null;
   }
 }

@@ -29,9 +29,12 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
 
   // Membuat tombol nomor halaman (sederhana, bisa dikembangkan)
   const pageNumbers = [];
-  const maxPagesToShow = 5; // Jumlah maksimal nomor halaman yang ditampilkan
+  const maxPagesToShow = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-  let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+  let endPage = Math.min(
+    Math.min(totalPages,), // Tambahkan pembatasan maksimum 100 halaman
+    startPage + maxPagesToShow - 1
+  );
 
   if (endPage - startPage + 1 < maxPagesToShow) {
     startPage = Math.max(1, endPage - maxPagesToShow + 1);
@@ -76,8 +79,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
 
       {endPage < totalPages && (
         <>
-          {endPage < totalPages - 1 && <span className="text-gray-500">...</span>}
-          <button onClick={() => !isLoading && onPageChange(totalPages)} disabled={isLoading} className="mx-1 px-3 py-1 text-sm font-medium rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50">{totalPages}</button>
+          <span className="text-gray-500">...</span>
         </>
       )}
 

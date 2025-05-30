@@ -1,22 +1,19 @@
 // src/components/manga/detail/MangaChapterList.tsx
 "use client";
 
-import type { Chapter, Manga } from "@/types/manga"; // Perlu Manga untuk getRelationshipName jika digunakan di sini
-import { getRelationshipName } from "@/lib/utils"; // Kita akan buat utils.ts nanti
+import Link from "next/link"; // Impor Link
+import type { Chapter } from "@/types/manga";
+import { getRelationshipName } from "@/lib/utils";
 
 interface MangaChapterListProps {
   chapters: Chapter[];
-  // manga: Manga; // Jika getRelationshipName membutuhkan konteks manga, atau pindahkan logikanya
+  mangaId: string; // Tambahkan mangaId untuk membuat tautan kembali jika diperlukan
 }
 
-const MangaChapterList: React.FC<MangaChapterListProps> = ({ chapters }) => {
+const MangaChapterList: React.FC<MangaChapterListProps> = ({ chapters, mangaId }) => {
   if (chapters.length === 0) {
     return <p className="text-gray-400">Belum ada chapter yang tersedia.</p>;
   }
-
-  // Fungsi getRelationshipName bisa dipindah ke utils atau di-pass sebagai prop jika perlu
-  // Untuk contoh ini, kita asumsikan getRelationshipName ada di utils
-  // dan bisa bekerja dengan objek Chapter yang memiliki relationships.
 
   return (
     <div>
@@ -24,8 +21,9 @@ const MangaChapterList: React.FC<MangaChapterListProps> = ({ chapters }) => {
       <ul className="space-y-2 max-h-96 overflow-y-auto bg-gray-800 p-3 rounded-md custom-scrollbar">
         {chapters.map((chapter) => (
           <li key={chapter.id} className="p-3 bg-gray-700 rounded shadow hover:bg-gray-600 transition-colors duration-150">
-            <a
-              href={`#`} // Nantinya bisa diarahkan ke halaman pembaca chapter
+            {/* Perbarui tautan untuk mengarah ke halaman pembaca */}
+            <Link
+              href={`/read/${chapter.id}`} // Tautan ke halaman pembaca dengan ID chapter
               className="block text-sky-300 hover:text-sky-200"
             >
               <span className="font-medium">
@@ -36,14 +34,13 @@ const MangaChapterList: React.FC<MangaChapterListProps> = ({ chapters }) => {
               <div className="text-xs text-gray-400 mt-1">
                 <span>Bahasa: {chapter.attributes.translatedLanguage.toUpperCase()}</span>
                 <span className="mx-1">|</span>
-                {/* Pastikan 'scanlation_group' ada di includes saat fetch chapter */}
                 <span>Grup: {getRelationshipName(chapter, "scanlation_group")}</span>
                 <span className="mx-1">|</span>
                 <span>
                   Terbit: {new Date(chapter.attributes.publishAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
               </div>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
