@@ -1,7 +1,7 @@
 // src/app/api/md-proxy/[...slug]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { RouteContext } from 'next'; // Tambahkan baris ini
+// import type { RouteContext } from 'next'; // Removed: Not needed or does not exist
 
 const MANGADEX_API_BASE_URL = 'https://api.mangadex.org';
 
@@ -15,9 +15,9 @@ const MANGADEX_API_BASE_URL = 'https://api.mangadex.org';
 
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  context: { params: Promise<{ slug: string[] }> }
 ): Promise<NextResponse> {
-  // Tunggu params sebelum digunakan
+  // Tunggu params sebelum digunakan (Next.js 15+)
   const { slug } = await context.params;
   const targetPath = slug.join('/');
 
