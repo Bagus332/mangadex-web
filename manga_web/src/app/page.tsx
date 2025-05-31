@@ -1,195 +1,116 @@
 // src/app/page.tsx
-"use client"; 
-import { Suspense } from 'react'; // Import Suspense
-// Pindahkan semua impor lain yang spesifik untuk konten halaman ke MangaPageClientContent
-import type { Manga, MangaSearchParameters, MangaStatus, MangaContentRating } from "@/types/manga";
-import MangaGrid from "@/components/manga/MangaGrid";
-import MangaSearch from "@/components/manga/MangaSearch";
-import Pagination from "@/components/ui/Pagination";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import ErrorMessage from "@/components/ui/ErrorMessage";
-import { fetchMangaList } from "@/lib/api";
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { BookOpen, Code, Mail, Github, UserCircle, BotMessageSquare } from 'lucide-react'; // Menggunakan lucide-react untuk ikon
 
-
-const ITEMS_PER_PAGE = 24;
-
-// Fungsi utilitas tetap bisa di luar jika tidak bergantung pada hook React
-const parseFiltersFromUrl = (params: URLSearchParams): Partial<MangaSearchParameters> => {
-  const filters: Partial<MangaSearchParameters> = {};
-  if (params.has('q')) filters.title = params.get('q')!;
-  if (params.has('year')) {
-    const yearVal = parseInt(params.get('year')!, 10);
-    if (!isNaN(yearVal)) filters.year = yearVal;
-  }
-  if (params.has('status')) filters.status = params.getAll('status') as MangaStatus[];
-  if (params.has('contentRating')) filters.contentRating = params.getAll('contentRating') as MangaContentRating[];
-  return filters;
-};
-
-const buildQueryStringFromFilters = (filters: Partial<MangaSearchParameters>, currentPage: number): string => {
-  const params = new URLSearchParams();
-  if (filters.title) params.set('q', filters.title);
-  if (filters.year) params.set('year', filters.year.toString());
-  filters.status?.forEach(s => params.append('status', s));
-  filters.contentRating?.forEach(cr => params.append('contentRating', cr));
-  if (currentPage > 1) params.set('page', currentPage.toString());
-  return params.toString();
-};
-
-// Komponen ini akan berisi semua logika client-side dan hooks
-function MangaPageClientContent() {
-  "use client"; // Tandai komponen internal ini sebagai Client Component
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams(); // Hooks digunakan di sini
-
-  const [mangaList, setMangaList] = useState<Manga[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalManga, setTotalManga] = useState(0);
-
-  // Inisialisasi state dari searchParams. Ini aman karena kita sudah di dalam Client Component.
-  const [activeFilters, setActiveFilters] = useState<Partial<MangaSearchParameters>>(
-    () => parseFiltersFromUrl(searchParams)
-  );
-  const [currentPage, setCurrentPage] = useState(() => Number(searchParams.get('page')) || 1);
-
-  const loadManga = useCallback(async (filters: Partial<MangaSearchParameters>, page: number) => {
-    setIsLoading(true);
-    setError(null);
-    console.log(`[HomePage] Loading manga with filters:`, filters, `page: ${page}`);
-
-    const offset = (page - 1) * ITEMS_PER_PAGE;
-
-    try {
-      const response = await fetchMangaList({
-        limit: ITEMS_PER_PAGE,
-        offset: offset,
-        ...filters,
-        includes: ["cover_art"],
-        order: (filters.title || filters.year || filters.status?.length || filters.contentRating?.length) ? { relevance: "desc" } : { followedCount: "desc" },
-        availableTranslatedLanguage: ["en", "id"],
-      });
-
-      if (response && response.result === "ok") {
-        setMangaList(response.data);
-        setTotalManga(response.total);
-      } else {
-        const errorMessage = response?.errors?.[0]?.detail || "Gagal mengambil data manga.";
-        setError(errorMessage);
-        setMangaList([]);
-        setTotalManga(0);
-        console.error("[HomePage] Failed to fetch manga:", response);
-      }
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan saat menghubungi server.");
-      setMangaList([]);
-      setTotalManga(0);
-      console.error("[HomePage] Fetch error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Efek untuk memuat manga ketika filter atau halaman berubah
-  useEffect(() => {
-    loadManga(activeFilters, currentPage);
-  }, [activeFilters, currentPage, loadManga]);
-
-  // Efek untuk memperbarui URL ketika filter atau halaman berubah
-  useEffect(() => {
-    const newQueryString = buildQueryStringFromFilters(activeFilters, currentPage);
-    const currentQueryString = searchParams.toString();
-    // Normalisasi untuk perbandingan yang lebih andal (opsional, tapi bisa membantu)
-    const normalize = (str: string) => str.split('&').sort().join('&');
-    if (normalize(newQueryString) !== normalize(currentQueryString)) {
-         router.replace(`${pathname}${newQueryString ? `?${newQueryString}` : ''}`, { scroll: false });
-    }
-  }, [activeFilters, currentPage, pathname, router, searchParams]);
-
-
-  const handleSearch = (filters: MangaSearchParameters) => {
-    console.log("[HomePage] Search submitted with filters:", filters);
-    setActiveFilters(filters);
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (page: number) => {
-    if (page !== currentPage) {
-      setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const totalPages = Math.ceil(totalManga / ITEMS_PER_PAGE);
-
-  // Tampilan loading awal sebelum data pertama kali dimuat
-  if (isLoading && mangaList.length === 0 && !error) {
-     return (
-        <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-gray-900 text-white">
-            <LoadingSpinner text="Memuat manga..." size="lg" />
-        </div>
-     );
-  }
-
+export default function PortfolioPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 sm:p-6 md:p-8 bg-gray-900 text-white">
-      <header className="w-full max-w-4xl mx-auto mb-6 sm:mb-8 text-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-sky-400 mb-6">
-          Jelajah MangaDex
-        </h1>
-        <MangaSearch onSearch={handleSearch} initialFilters={activeFilters} isLoading={isLoading} />
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-sky-900 text-white flex flex-col">
+      {/* Header Navigasi bisa ditambahkan di layout.tsx, atau di sini jika spesifik untuk halaman ini */}
 
-      {/* Tampilan loading untuk pembaruan data (ketika mangaList sudah ada isinya) */}
-      {isLoading && mangaList.length > 0 && (
-         <div className="my-10 flex-grow flex items-center justify-center">
-            <LoadingSpinner text="Memperbarui daftar..." size="md" />
+      {/* Hero Section */}
+      <section className="flex-grow flex flex-col items-center justify-center text-center px-4 py-16 sm:py-24">
+        <div className="bg-white/10 backdrop-blur-md p-8 sm:p-12 rounded-xl shadow-2xl max-w-2xl mx-auto">
+          <img src="https://res.cloudinary.com/dy03ciscg/image/upload/WhatsApp_Image_2025-05-31_at_09.31.53_9c95e1f1_ypvcvb.jpg" alt="Profile Picture" className="w-32 h-32 sm:w-40 sm:h-40 rounded-full mb-6 mx-auto object-cover shadow-lg" />
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4">
+            Bagus Sadewa
+          </h1>
+          <p className="text-xl sm:text-2xl text-sky-300 mb-8">
+            Web Developer & Penggemar Manga
+          </p>
+          <p className="text-md sm:text-lg text-gray-300 max-w-xl mx-auto mb-10">
+            Selamat datang di portofolio pribadi saya. Di sini Anda dapat menemukan proyek-proyek yang telah saya kerjakan dan sedikit tentang saya.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
+            <Link href="/manga" legacyBehavior>
+              <a className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-8 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 inline-flex items-center">
+                <BookOpen size={20} className="mr-2" />
+                Jelajahi Proyek Manga
+              </a>
+            </Link>
+            <a
+              href="https://github.com/Bagus332?tab=repositories"
+              className="border-2 border-sky-500 text-sky-400 hover:bg-sky-500 hover:text-white font-semibold py-3 px-8 rounded-lg text-lg shadow-lg transition-all transform hover:scale-105 inline-flex items-center"
+            >
+              <Code size={20} className="mr-2" />
+              Lihat Proyek Lain
+            </a>
+          </div>
         </div>
-      )}
+      </section>
 
-      {!isLoading && error && (
-        <ErrorMessage message={error} className="w-full max-w-lg mx-auto my-10" />
-      )}
-
-      {!isLoading && !error && mangaList.length === 0 && (
-        <p className="text-gray-400 text-xl my-10 text-center">
-          {Object.values(activeFilters).some(val => val !== undefined && (Array.isArray(val) ? val.length > 0 : String(val).trim().length > 0))
-            ? "Tidak ada manga yang cocok dengan filter Anda."
-            : "Tidak ada manga yang ditemukan."}
-        </p>
-      )}
-
-      {!isLoading && !error && mangaList.length > 0 && (
-        <>
-          <MangaGrid mangaList={mangaList} />
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            isLoading={isLoading}
-          />
-        </>
-      )}
-    </main>
-  );
-}
-
-// Ini adalah komponen default yang diekspor untuk rute "/"
-// Ia membungkus komponen client dengan Suspense
-export default function Page() {
-  return (
-    <Suspense fallback={
-        // Fallback ini akan ditampilkan saat Next.js menunggu MangaPageClientContent
-        // untuk dirender di sisi klien jika terjadi CSR bailout.
-        <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-gray-900 text-white">
-            <LoadingSpinner text="Memuat halaman..." size="lg" />
+      {/* Bagian "Tentang Saya" (Contoh) */}
+      <section id="about" className="py-16 sm:py-20 bg-gray-800/50">
+        <div className="container mx-auto px-6 max-w-3xl text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-sky-400">Tentang Saya</h2>
+          <UserCircle size={80} className="mx-auto mb-6 text-sky-300" />
+          <p className="text-lg text-gray-300 leading-relaxed mb-4">
+            Saya adalah seorang pengembang web dengan antusiasme tinggi terhadap teknologi modern dan pembuatan aplikasi web yang intuitif dan menarik. Saya senang belajar hal baru dan selalu mencari tantangan untuk mengembangkan kemampuan saya.
+          </p>
+          <p className="text-lg text-gray-300 leading-relaxed">
+            Selain coding, saya juga menikmati membaca manga dan mengeksplorasi berbagai cerita dan karya seni yang ada di dalamnya. Proyek MangaDex Explorer ini adalah salah satu cara saya menggabungkan kedua minat saya tersebut.
+          </p>
         </div>
-    }>
-      <MangaPageClientContent />
-    </Suspense>
+      </section>
+
+      {/* Bagian Proyek (Contoh) */}
+      <section id="projects" className="py-16 sm:py-20">
+        <div className="container mx-auto px-6 max-w-4xl">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12 text-sky-400">Proyek Unggulan</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Proyek MangaDex Explorer */}
+            <div className="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-sky-500/30 transition-shadow duration-300">
+              <BookOpen size={48} className="mb-4 text-sky-400" />
+              <h3 className="text-2xl font-semibold mb-3 text-white">MangaDex Explorer</h3>
+              <p className="text-gray-400 mb-4">
+                Sebuah aplikasi web untuk menjelajahi, mencari, dan membaca manga dari API MangaDex. Dibangun dengan Next.js, TypeScript, dan Tailwind CSS.
+              </p>
+              <Link href="/manga" legacyBehavior>
+                <a className="inline-flex items-center text-sky-400 hover:text-sky-300 font-medium">
+                  Lihat Proyek <span aria-hidden="true" className="ml-1">&rarr;</span>
+                </a>
+              </Link>
+            </div>
+
+            {/* Proyek Placeholder Lain */}
+            <div className="bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-teal-500/30 transition-shadow duration-300">
+              <BotMessageSquare size={48} className="mb-4 text-teal-400" />
+              <h3 className="text-2xl font-semibold mb-3 text-white">Discord Bot</h3>
+              <p className="text-gray-400 mb-4">
+                Discord bot yang dibuat untuk mengelola komunitas dan memberikan informasi terkini tentang manga. Bot ini dapat memberikan notifikasi rilis baru dan menjawab pertanyaan umum.
+                menggunakan Node.js dan Discord.js dan gemini genAI untuk menjawab pertanyaan pengguna.
+              </p>
+              <a href="#" className="inline-flex items-center text-teal-400 hover:text-teal-300 font-medium">
+                Detail <span aria-hidden="true" className="ml-1">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bagian Kontak (Contoh) */}
+      <section id="contact" className="py-16 sm:py-20 bg-gray-800/50">
+        <div className="container mx-auto px-6 max-w-3xl text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-sky-400">Hubungi Saya</h2>
+          <p className="text-lg text-gray-300 mb-8">
+            Jika Anda tertarik untuk berdiskusi lebih lanjut, jangan ragu untuk menghubungi saya melalui:
+          </p>
+          <div className="flex justify-center space-x-6">
+            <a href="mailto:bagussadewa332@gmail.com" className="text-gray-400 hover:text-sky-400 transition-colors">
+              <Mail size={32} />
+              <span className="sr-only">Email</span>
+            </a>
+            <a href="https://github.com/Bagus332" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-sky-400 transition-colors">
+              <Github size={32} />
+              <span className="sr-only">GitHub</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer Sederhana */}
+      <footer className="text-center p-6 sm:p-8 text-gray-500 border-t border-gray-700">
+        <p>&copy; {new Date().getFullYear()} Bagus Sadewa. Dibuat dengan Next.js dan Tailwind CSS.</p>
+      </footer>
+    </div>
   );
 }
